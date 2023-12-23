@@ -115,13 +115,8 @@ details.description:not([open]) summary::after {
 }
 
 </style>
-# Intune documentation
 
-*Generated:* 22/12/2023 1:03:08 PM
-
-
-<h1 id="section-1">Client apps</h1>
-<h2 id="section-2">Applications</h2>
+*Generated:* 22/12/2023 1:12:58 PM
 <h3 id="section-3">Chrome (Enterprise)</h3>
 
 <table class='table-settings'>
@@ -150,7 +145,7 @@ details.description:not([open]) summary::after {
 </tr>
 <tr class=''>
 <td class='property-column1'>Last modified</td>
-<td class='property-column2'>Friday, 22 December 2023 1:02:39 PM</td>
+<td class='property-column2'>Friday, 22 December 2023 1:08:38 PM</td>
 </tr>
 <tr class=''>
 <td class='property-column1'>Scope tags</td>
@@ -344,37 +339,6 @@ details.description:not([open]) summary::after {
 </table>
 
 ###### Table 2. Settings - Chrome (Enterprise)
-
-
-<table class='table-settings'>
-<tr class='table-header1'>
-<td>Group mode</td>
-<td>Group</td>
-<td>Filter</td>
-<td>Filter mode</td>
-<td>Delivery optimization priority</td>
-<td>Availability</td>
-<td>Installation deadline</td>
-<td>End user notifications</td>
-<td>Restart grace period</td>
-</tr>
-<tr>
-<td colspan="9" class='category-level1'>Required</td>
-</tr>
-<tr class=''>
-<td class='property-column1'>Included</td>
-<td class='property-column2'>DeploymentGroup</td>
-<td class='property-column3'>None</td>
-<td class='property-column4'>None</td>
-<td class='property-column5'>Content download in Background</td>
-<td class='property-column6'>As soon as possible</td>
-<td class='property-column7'>As soon as possible</td>
-<td class='property-column8'>Show all toast notifications</td>
-<td class='property-column9'>Disabled</td>
-</tr>
-</table>
-
-###### Table 3. Assignments - Chrome (Enterprise)
 
 
 
