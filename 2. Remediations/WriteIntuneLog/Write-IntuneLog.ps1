@@ -1,71 +1,43 @@
 <#
 .SYNOPSIS
-    Remediation script to restore the Write-IntuneLog function by saving it to the correct file path.
+    Platform script to create the Write-IntuneLog function and ensure it is available early in the Autopilot process.
 
 .DESCRIPTION
-    This script restores or creates the Write-IntuneLog.ps1 file with the correct function content if it is missing or the version is incorrect.
+    This script ensures the Write-IntuneLog.ps1 file is created in C:\ProgramData\EUC\Functions with the correct function content.
+    It is designed to be run as part of the Autopilot Device Preparation profile, ensuring the logging function is available as soon as possible for other scripts.
 
 .PARAMETER None
 
 .EXAMPLE
-    .\Remediate-WriteIntuneLog.ps1
+    .\Create-WriteIntuneLog.ps1
+    This will create the Write-IntuneLog.ps1 function file and ensure it is saved in the correct path.
 
 .NOTES
     Author: Gary Smith [EUC Administrator]
     Date: 05/10/2024
 #>
 
-$ExpectedVersion = 'Version: 1.4'  # Update the version here if the function content changes
 $FunctionDirectory = 'C:\ProgramData\EUC\Functions'
 $FunctionFileName = 'Write-IntuneLog.ps1'
-$FunctionFilePath = $FunctionDirectory + '\' + $FunctionFileName
+$FunctionFilePath = Join-Path -Path $FunctionDirectory -ChildPath $FunctionFileName
 
-try {
-    # Ensure the function directory exists
-    if (-not (Test-Path -Path $FunctionDirectory)) {
-        New-Item -Path $FunctionDirectory -ItemType Directory -Force | Out-Null
-    }
-
-    # Read the entire script into a variable
-    $currentScript = Get-Content -Path $MyInvocation.MyCommand.Path -Raw
-
-    # Find the position of the **last** "#!ENDOFSCRIPT!#" marker and extract everything after it
-    $Marker = "#!ENDOFSCRIPT!#"
-    $FunctionStartIndex = $currentScript.LastIndexOf($Marker) + $Marker.Length
-    $FunctionContent = $currentScript.Substring($FunctionStartIndex).Trim()
-
-    # Check if the file exists and contains the correct version
-    if (Test-Path $FunctionFilePath) {
-        $FileContent = Get-Content -Path $FunctionFilePath -Raw
-        
-        if ($FileContent -match [regex]::Escape($ExpectedVersion)) {
-            $OutputMessage = "Write-IntuneLog function version is correct, no remediation required."
-        } else {
-            $OutputMessage = "Write-IntuneLog function version is incorrect, deleting and restoring the correct version."
-            
-            # Delete the existing file and recreate it with the correct version
-            Remove-Item -Path $FunctionFilePath -Force -ErrorAction SilentlyContinue
-            
-            # Retry in case the file was locked or in use
-            Start-Sleep -Seconds 1
-            if (Test-Path $FunctionFilePath) {
-                Remove-Item -Path $FunctionFilePath -Force -ErrorAction SilentlyContinue
-            }
-            
-            # Create the new file with correct function content
-            Set-Content -Path $FunctionFilePath -Value $FunctionContent -Force
-        }
-    } else {
-        $OutputMessage = "Write-IntuneLog.ps1 does not exist, creating the file."
-        Set-Content -Path $FunctionFilePath -Value $FunctionContent -Force
-    }
-
-    Write-Output $OutputMessage
-
-} catch {
-    # Handle any unexpected script errors
-    Write-Error "An error occurred during remediation: $($_.Exception.Message)" -ErrorAction Stop
+# Ensure the function directory exists, otherwise create it
+if (-not (Test-Path -Path $FunctionDirectory)) {
+    New-Item -Path $FunctionDirectory -ItemType Directory -Force | Out-Null
+    Write-Output "Created directory: $FunctionDirectory"
 }
+
+# Read the entire script into a variable
+$currentScript = Get-Content -Path $MyInvocation.MyCommand.Path -Raw
+
+# Find the position of the **last** "#!ENDOFSCRIPT!#" marker and extract everything after it
+$Marker = "#!ENDOFSCRIPT!#"
+$FunctionStartIndex = $currentScript.LastIndexOf($Marker) + $Marker.Length
+$FunctionContent = $currentScript.Substring($FunctionStartIndex).Trim()
+
+# Create the Write-IntuneLog.ps1 file with the extracted content
+Set-Content -Path $FunctionFilePath -Value $FunctionContent -Force
+Write-Output "Write-IntuneLog.ps1 has been created or updated."
 
 # The actual Write-IntuneLog function
 #!ENDOFSCRIPT!#
