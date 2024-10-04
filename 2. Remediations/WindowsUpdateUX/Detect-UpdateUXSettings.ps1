@@ -6,11 +6,9 @@
     This script checks the Windows Update UX registry settings for the following values:
     
     1. **IsContinuousInnovationOptedIn**:
-       - This setting controls whether the device is enrolled in the Continuous Innovation updates for Windows.
        - Expected Value: 1 (Enabled).
 
     2. **RestartNotificationsAllowed2**:
-       - This setting controls whether users are notified about restart requirements related to Windows updates.
        - Expected Value: 1 (Enabled).
     
     The script logs the detection and compliance status to a log file using the `Write-IntuneLog` function.
@@ -24,11 +22,11 @@
 
 .NOTES
     Author: Gary Smith [EUC Administrator]
-    Date: 04/10/2024
-    This script checks if Windows Update UX registry settings are compliant with organisational standards and logs the output.
+    Date: 05/10/2024
 #>
 
 $LogFileName = "Remediations.log"
+$LogComponentName = "Detect-UpdateUXSettings"  # Hardcoded component name for logging
 $LogFunctionPath = 'C:\ProgramData\EUC\Functions\Write-IntuneLog.ps1'
 
 # Try to import the Write-IntuneLog function, otherwise stop the script with an error
@@ -55,38 +53,43 @@ try {
         $Name = $item.Name
         $Value = $item.Value
 
-        # Check if the registry property exists
-        if (Test-Path "$Path\$Name") {
-            $currentValue = Get-ItemProperty -Path $Path -Name $Name | Select-Object -ExpandProperty $Name
-            # If the value is not as expected, mark as non-compliant
+        try {
+            # Get the current value (this will throw an error if the value doesn't exist)
+            $currentValue = (Get-ItemProperty -Path $Path -Name $Name -ErrorAction Stop).$Name
+
+            # If the value exists but is incorrect, update it
             if ($currentValue -ne $Value) {
-                $DetectionOutput += "$Name is set to $currentValue, expected $Value."
+                $DetectionOutput += "$Name exists but is set to $currentValue, expected $Value."
                 $Compliant = $false
+            } else {
+                $DetectionOutput += "$Name exists and is correctly set to $Value, no action needed."
             }
-        } else {
+        }
+        catch {
+            # Handle the case where the key doesn't exist at all
             $DetectionOutput += "$Name does not exist."
             $Compliant = $false
         }
+
     }
 
     # Join the detection output into a single string for better reporting
     $DetectionOutputString = $DetectionOutput -join "; "
 
     # Log the detection results
-    Write-IntuneLog -Message "$DetectionOutputString" -Severity Info -LogFileName $LogFileName
+    Write-IntuneLog -Message "$DetectionOutputString" -Severity Info -LogFileName $LogFileName -Component $LogComponentName
 
     # Exit with non-zero code if non-compliant, otherwise exit with 0
     if ($Compliant) {
-        Write-IntuneLog -Message "System is compliant." -Severity Info -LogFileName $LogFileName
-        Write-Output "System is compliant."
+        Write-IntuneLog -Message "System is compliant." -Severity Info -LogFileName $LogFileName -Component $LogComponentName
         exit 0
     } else {
-        Write-IntuneLog -Message "System is not compliant." -Severity Warning -LogFileName $LogFileName
+        Write-IntuneLog -Message "System is not compliant." -Severity Warning -LogFileName $LogFileName -Component $LogComponentName
         Write-Output "$DetectionOutputString"
         exit 1
     }
 } catch {
     # Handle any unexpected script errors
-    Write-IntuneLog -Message "An error occurred during detection: $($_.Exception.Message)" -Severity Error -LogFileName $LogFileName
+    Write-IntuneLog -Message "An error occurred during detection: $($_.Exception.Message)" -Severity Error -LogFileName $LogFileName -Component $LogComponentName
     Write-Error "An error occurred during detection: $($_.Exception.Message)" -ErrorAction Stop
 }

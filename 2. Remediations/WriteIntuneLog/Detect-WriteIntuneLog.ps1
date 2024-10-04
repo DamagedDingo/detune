@@ -16,7 +16,7 @@
 #>
 
 $FunctionFilePath = 'C:\ProgramData\EUC\Functions\Write-IntuneLog.ps1'
-$ExpectedVersion = 'Version: 1.1'
+$ExpectedVersion = 'Version: 1.3'
 $Compliant = $true
 $DetectionOutput = @()
 

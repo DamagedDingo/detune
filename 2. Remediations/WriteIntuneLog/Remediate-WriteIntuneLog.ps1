@@ -12,13 +12,13 @@
 
 .NOTES
     Author: Gary Smith [EUC Administrator]
-    Date: 04/10/2024
+    Date: 05/10/2024
 #>
 
+$ExpectedVersion = 'Version: 1.3'  # Update the version here if the function content changes
 $FunctionDirectory = 'C:\ProgramData\EUC\Functions'
 $FunctionFileName = 'Write-IntuneLog.ps1'
 $FunctionFilePath = $FunctionDirectory + '\' + $FunctionFileName
-$ExpectedVersion = 'Version: 1.0'
 
 try {
     # Ensure the function directory exists
@@ -41,12 +41,23 @@ try {
         if ($FileContent -match [regex]::Escape($ExpectedVersion)) {
             $OutputMessage = "Write-IntuneLog function version is correct, no remediation required."
         } else {
-            $OutputMessage = "Write-IntuneLog function version is incorrect, restoring the correct version."
-            Set-Content -Path $FunctionFilePath -Value $FunctionContent
+            $OutputMessage = "Write-IntuneLog function version is incorrect, deleting and restoring the correct version."
+            
+            # Delete the existing file and recreate it with the correct version
+            Remove-Item -Path $FunctionFilePath -Force -ErrorAction SilentlyContinue
+            
+            # Retry in case the file was locked or in use
+            Start-Sleep -Seconds 1
+            if (Test-Path $FunctionFilePath) {
+                Remove-Item -Path $FunctionFilePath -Force -ErrorAction SilentlyContinue
+            }
+            
+            # Create the new file with correct function content
+            Set-Content -Path $FunctionFilePath -Value $FunctionContent -Force
         }
     } else {
         $OutputMessage = "Write-IntuneLog.ps1 does not exist, creating the file."
-        Set-Content -Path $FunctionFilePath -Value $FunctionContent
+        Set-Content -Path $FunctionFilePath -Value $FunctionContent -Force
     }
 
     Write-Output $OutputMessage
@@ -62,22 +73,33 @@ Function Write-IntuneLog {
     <#
     .SYNOPSIS
         Writes log entries in CMTrace format to a specified log file with automatic archiving.
+
     .DESCRIPTION
         The Write-IntuneLog function is designed to log messages in a CMTrace-compatible format.
         The log file automatically archives itself when it exceeds 5MB, keeping a maximum of 5 archives.
+        The component name can be passed as a parameter but will be dynamically determined from the calling script if not provided.
+
     .PARAMETER Message
         The log message to be recorded.
+
     .PARAMETER Severity
         The severity level of the message. Options are: Info, Warning, Error.
+
     .PARAMETER LogFileName
         The name of the log file. Default is "EUC_System_Log.log".
+
+    .PARAMETER LogComponentName
+        Optional component name for logging. If not provided, the calling script name will be used.
+
     .EXAMPLE
         Write-IntuneLog -Message "This is an informational log entry." -Severity Info
+
     .NOTES
-        Version: 1.1
+        Version: 1.3
         Author: Gary Smith [EUC Administrator]
         Date: 05/10/2024
-        Revision: Updated to capture the calling script's name for logging.
+        Revision: Hardcoded component name for consistent logging with Intune.
+                  Intune renames scripts so cannot use dynamic component names in remediations.
     #>
     
     [CmdletBinding()]
@@ -86,7 +108,8 @@ Function Write-IntuneLog {
         [string]$Message, 
         [ValidateSet('Info', 'Warning', 'Error')]
         [string]$Severity = 'Info',
-        [string]$LogFileName = "EUC_System_Log.log"
+        [string]$LogFileName = "EUC_System_Log.log",
+        [string]$Component = $null  # Component name for logging, dynamically determined if not provided. Should be script or function name.
     )
     
     # Convert Severity string to a number for logging
@@ -106,7 +129,7 @@ Function Write-IntuneLog {
     if (-not (Test-Path -Path $LogPath)) {
         New-Item -Path $LogPath -ItemType Directory -Force | Out-Null
     }
-
+    
     # Archive the log if it exceeds the maximum size
     if (Test-Path $LogFile) {
         $logFileSize = (Get-Item $LogFile).Length
@@ -128,12 +151,14 @@ Function Write-IntuneLog {
         }
     }
 
-    # Determine the calling script's name or use "Console" if called directly from the console
-    $ScriptSource = if ($MyInvocation.PSCommandPath) {
-        [System.IO.Path]::GetFileName($MyInvocation.PSCommandPath)
-    }
-    else {
-        "Console"
+    # Dynamically calculate the component name if it's not provided
+    if (-not $LogComponentName) {
+        $LogComponentName = if ($MyInvocation.PSCommandPath) {
+            [System.IO.Path]::GetFileNameWithoutExtension($MyInvocation.PSCommandPath)
+        }
+        else {
+            "Console"
+        }
     }
     
     # Construct the CMTrace-compatible log string for CMPowerLogViewer
@@ -144,13 +169,14 @@ Function Write-IntuneLog {
     $CMTraceLogString = "<![LOG[$Message]LOG]!>" + `
         "<time=`"$LogTimePlusBias`" " + `
         "date=`"$LogDate`" " + `
-        "component=`"$ScriptSource`" " + `
+        "component=`"$LogComponentName`" " + `
         "context=`"$CurrentUser`" " + `
         "type=`"$SeverityNumber`" " + `
         "thread=`"$PID`" " + `
-        "file=`"$ScriptSource`">"
+        "file=`"$LogComponentName`">"
     
     # Append the CMTrace log string to the log file
     Add-Content -Path $LogFile -Value $CMTraceLogString
 }
+
 
