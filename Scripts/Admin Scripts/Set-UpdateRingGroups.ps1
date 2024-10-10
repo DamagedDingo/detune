@@ -5,6 +5,12 @@ This script is designed to manage and update Intune dynamic groups for Windows u
 .DESCRIPTION
 The script organizes devices into three rings for staggered deployment of Windows updates:
 
+- **Ring 0 (Test)**: This group contains manually assigned devices for testing updates before the Pilot Testing stage. 
+    - **Deferral Period**: 0 days
+    - **Deadline**: 0 days
+    - **Grace Period**: 1 days
+    - This group is manually updated.
+
 - **Ring 1 (Pilot Testing)**: This group contains 5% of the total devices. Devices in this group receive updates early for testing purposes, allowing the Central Office EUC team to identify any issues before broader deployment. 
     - **Deferral Period**: 0 days
     - **Deadline**: 2 days
@@ -66,6 +72,9 @@ $ring2Percentage = 0.15
 $requiredModules = @('Microsoft.Graph.DeviceManagement', 'Microsoft.Graph.Groups')
 
 # Group names and descriptions (prefixed with 'DEV -' for testing)
+$ring0GroupName = "DEV - Intune - Deployment - D - Ring 0 - Central Office"
+$ring0Description = "Manually assigned group for Ring 0 testing."
+
 $ring1GroupName = "Win - OIB - WUfB - Ring 1 - Pilot"
 $ring1Description = "This group contains 5% of devices for Pilot testing. Used for early deployment of updates in the Central Office."
 
@@ -107,6 +116,7 @@ if (Get-MgContext) {
 #region Group Management
 # Check and create groups if they don't exist
 $groups = @(
+    @{Name=$ring0GroupName; Description=$ring0Description; Assigned=$true},
     @{Name=$ring1GroupName; Description=$ring1Description},
     @{Name=$ring2GroupName; Description=$ring2Description},
     @{Name=$combinedGroupName; Description=$combinedGroupDescription},
@@ -117,17 +127,31 @@ foreach ($group in $groups) {
     $existingGroup = Get-MgGroup -Filter "displayName eq '$($group.Name)'" -ErrorAction SilentlyContinue
     if (-not $existingGroup) {
         Write-IntuneLog -Message "Creating group: $($group.Name)." -Severity "Info"
-        
-        $groupSplat = @{
-            DisplayName                    = $group.Name
-            SecurityEnabled                = $true
-            MailEnabled                    = $false
-            MailNickname                   = $group.Name -replace ' ', ''
-            Description                    = $group.Description
-            GroupTypes                     = @("DynamicMembership")
-            MembershipRule                 = "(device.deviceId -eq '')"
-            MembershipRuleProcessingState  = "Paused"
+
+        if ($group.Assigned) {
+            # Manually assigned group (Ring 0)
+            $groupSplat = @{
+                DisplayName     = $group.Name
+                SecurityEnabled = $true
+                MailEnabled     = $false
+                MailNickname    = $group.Name -replace ' ', ''
+                Description     = $group.Description
+                GroupTypes      = @()
+            }
+        } else {
+            # Dynamic group for Ring 1, Ring 2, and Combined Test Rings
+            $groupSplat = @{
+                DisplayName                    = $group.Name
+                SecurityEnabled                = $true
+                MailEnabled                    = $false
+                MailNickname                   = $group.Name -replace ' ', ''
+                Description                    = $group.Description
+                GroupTypes                     = @("DynamicMembership")
+                MembershipRule                 = "(device.deviceId -eq '')"
+                MembershipRuleProcessingState  = "Paused"
+            }
         }
+
         New-MgGroup @groupSplat
     } else {
         Write-IntuneLog -Message "Group already exists: $($group.Name)." -Severity "Info"
@@ -145,19 +169,26 @@ Write-IntuneLog -Message "Total Windows devices retrieved: $($allDevices.Count)"
 $excludedDevices = (Get-MgGroupMember -GroupId $((Get-MgGroup -Filter "displayName eq '$($exclusionGroup)'").Id) | 
                         Select-Object -ExpandProperty AdditionalProperties).deviceId
 
-# Filter out excluded devices from $remainingDevices based on the device ID
-if ($excludedDevices) {
-    Write-IntuneLog -Message "Excluded devices found: $($excludedDevices.Count)" -Severity "Info"
-    Write-IntuneLog -Message "Excluding devices from exclusion group." -Severity "Info"
-    $remainingDevices = $allDevices | Where-Object { $_.AzureAdDeviceId -notin $excludedDevices }
-    Write-IntuneLog -Message "Remaining devices after exclusion: $($remainingDevices.Count)" -Severity "Info"
-} else {
-    Write-IntuneLog -Message "No devices found in exclusion group. Using all devices." -Severity "Warning"
-    $remainingDevices = $allDevices
-}
 #endregion Device Management
 
+#region Ring0 Group management
+# Get the existing Ring 0 group
+$existingRing0Group = Get-MgGroup -Filter "displayName eq '$($ring0GroupName)'" -ErrorAction SilentlyContinue
+
+# Retrieve the Ring 0 group's device IDs (if any are assigned)
+$existingRing0Devices = (Get-MgGroupMember -GroupId $((Get-MgGroup -Filter "displayName eq '$($ring0GroupName)'").Id) | 
+                        Select-Object -ExpandProperty AdditionalProperties).deviceId
+
+# Filter out excluded devices and Ring 0 devices from $remainingDevices based on the device ID
+$remainingDevices = $allDevices | Where-Object { $_.AzureAdDeviceId -notin $excludedDevices }
+if ($existingRing0Devices) {
+    $remainingDevices = $remainingDevices | Where-Object { $_.AzureAdDeviceId -notin $existingRing0Devices }
+}
+
+#endregion Ring0 Group management
+
 #region Ring1 Group management
+
 # Retrieve the Ring 1 group's device IDs
 $existingRing1Devices = (Get-MgGroupMember -GroupId $((Get-MgGroup -Filter "displayName eq '$($ring1GroupName)'").Id) | 
                         Select-Object -ExpandProperty AdditionalProperties).deviceId
@@ -258,11 +289,10 @@ if ($ring2DeviceCount -gt 0) {
 }
 #endregion Ring2 Group management
 
-
 #region Combined Test Rings Group management
-# Update combined group for Ring 1 and Ring 2
+# Update combined group for Ring 0, Ring 1, and Ring 2
 $existingCombinedGroup = Get-MgGroup -Filter "displayName eq '$($combinedGroupName)'"
-$combinedQuery = "device.memberOf -any (group.objectId -in ['$($existingRing1Group.Id)','$($existingRing2Group.Id)'])"
+$combinedQuery = "device.memberOf -any (group.objectId -in ['$($existingRing0Group.Id)','$($existingRing1Group.Id)','$($existingRing2Group.Id)'])"
 
 If ($existingCombinedGroup.MembershipRule -ne $combinedQuery -or $existingCombinedGroup.MembershipRuleProcessingState -ne "On") {
     Write-IntuneLog -Message "Updating membership rule for Combined Test Rings group." -Severity "Warning"
