@@ -296,7 +296,7 @@ $combinedQuery = "device.memberOf -any (group.objectId -in ['$($existingRing0Gro
 
 If ($existingCombinedGroup.MembershipRule -ne $combinedQuery -or $existingCombinedGroup.MembershipRuleProcessingState -ne "On") {
     Write-IntuneLog -Message "Updating membership rule for Combined Test Rings group." -Severity "Warning"
-    Write-IntuneLog -Message "Current Membership Rule: $($existingGroup.MembershipRule)" -Severity "Info"
+    Write-IntuneLog -Message "Current Membership Rule: $($existingCombinedGroup.MembershipRule)" -Severity "Info"
     Update-MgGroup -GroupId $($existingCombinedGroup.Id) -MembershipRule $combinedQuery -MembershipRuleProcessingState "On"
     Write-IntuneLog -Message "New Membership Rule: $($combinedQuery)" -Severity "Info"
     Write-IntuneLog -Message "Updated membership rule for Combined Test Rings group." -Severity "Info"
