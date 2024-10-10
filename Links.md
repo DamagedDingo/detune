@@ -50,8 +50,8 @@ ServiceUI transfers the UI of a particular application to the desktop currently 
 [Regshot](https://github.com/Seabreg/Regshot)
 Regshot is a utility tool designed for comparing snapshots of both the Windows registry and files on a system at different points in time. It allows users to identify changes made to the Windows registry and specific directories or paths. This capability is valuable for troubleshooting, monitoring software installations, and tracking modifications to both the registry and files. Users can take snapshots before and after specific events, and Regshot provides detailed reports on the changes, aiding in system analysis, security auditing, and understanding the impact of software updates.
 
-[]()\
-\
+[Intune Debug Toolkit](https://msendpointmgr.com/intune-debug-toolkit/)
+Intune Debug Toolkit is a community developed solution aiming at providing better and easier debug possibilities on devices co-managed or Intune managed only.
 
 []()\
 \
