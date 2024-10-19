@@ -41,6 +41,7 @@ When a user powers on their PC for the first time, the ideal scenario for Window
 If you’re not getting this "ideal experience", especially if the user must enter their credentials repeatedly, there's a good chance it's because the device is unexpectedly rebooting at some point during start up and the provisioning has to be nudged along. When a device reboots during Windows Autopilot, cached credentials are cleared and the autologin functionality is disabled.
 In this post, we've put together a list of scenarios that might be causing these unexpected reboots, and what can be done about them.
 \
+\
 [Collect and Store Monitor Metadata in Azure Tables](https://johannesblog.com/2024/07/09/collect-and-store-monitor-metadata-in-azure-tables/)\
 Collect and store metadata from Intune cloud-only devices in Azure Tables. Export PowerShell output directly to the table using a SAS key for secure access and efficient data storage.\
 
