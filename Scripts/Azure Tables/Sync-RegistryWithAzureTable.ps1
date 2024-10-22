@@ -37,7 +37,7 @@
 param (
     [string]$azureStorageAccount = "intuneremotestorage",
     [string]$azureTableName = "DemoTable1",
-    [string]$azureSasToken = "?sv=2022-11-02&ss=t&srt=o&sp=rwdlacu&se=2025-10-20T15:53:00Z&st=2024-10-20T07:53:00Z&spr=https&sig=m04%2FOwBx9CS4KqsONr4m639Cg5nRNNlCuApU2RmUk9U%3D",
+    [string]$azureSasToken = "?sv=2022-11-02&ss=t&srt=o&sp=rwdlacu&se=2025-10-20T15:53:00Z&st=2024-10-20T07:53:00Z&spr=https&sig=m04%2FOwBx9CS4Kqs0Nr4m639Dg5nRMMlCuApU2RmUk9U%3D",
     [string]$azureTableUri = "https://$azureStorageAccount.table.core.windows.net/$($azureTableName)$($azureSasToken)",
     [string]$azureBatchUri = "https://$azureStorageAccount.table.core.windows.net/`$batch$($azureSasToken)"
 )
@@ -324,7 +324,7 @@ Write-Verbose "[Main] Starting to collect uninstall data from registry"
 $uninstallKeysCollection = foreach ($registryPath in $registryPaths) {
     Get-UninstallData -uninstallPath $registryPath.Path -isWow6432Node $registryPath.IsWow6432Node
 }
-$uninstallKeysCollection = $uninstallKeysCollection # Limit uninstall data to first 4 applications for troubleshooting
+$uninstallKeysCollection = $uninstallKeysCollection
 Write-Verbose "[Main] Uninstall data collection completed with $($uninstallKeysCollection.Count) entries"
 
 Write-Verbose "[Main] Retrieving existing entries from Azure table"
@@ -340,7 +340,7 @@ Write-Verbose "[Main] Comparing uninstall data with existing entries"
 $allEntriesToProcess = @()
 
 foreach ($uninstall in $uninstallKeysCollection) {
-    if ($azureEntriesByPartition | Where-Object { $_.RowKey -eq $uninstall.RowKey }) {
+    if ($azureEntriesByPartition | Where-Object { $_.RowKey -eq $uninstall.RowKey -and $_.Version -ne $uninstall.Version }) {
         $allEntriesToProcess += $uninstall | Add-Member -MemberType NoteProperty -Name Method -Value "MERGE" -Force -PassThru
     } elseif (-not ($azureEntriesByPartition | Where-Object { $_.RowKey -eq $uninstall.RowKey })) {
         $allEntriesToProcess += $uninstall | Add-Member -MemberType NoteProperty -Name Method -Value "POST" -Force -PassThru
