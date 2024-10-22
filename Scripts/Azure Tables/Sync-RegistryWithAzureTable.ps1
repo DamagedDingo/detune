@@ -27,11 +27,12 @@
 .NOTES
     Author: Gary Smith [EUC Administrator]
     Date: 20/10/2024
-    Version: 1.1.5
+    Version: 1.1.6
     Change Log:
         - Updated variable names for clarity.
         - Added pagination handling for Get-TableData.
         - Improved verbose output for better tracking.
+        - Limited the MERGE requests to applications where the version number has changed. 
 #>
 
 param (
